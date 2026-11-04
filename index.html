@@ -1,851 +1,337 @@
 <!DOCTYPE html>
-<html lang="es" class="h-full bg-slate-950 text-cyan-400 select-none overflow-hidden font-mono">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MARK L - JARVIS VR HUD INTERACTIVE SYSTEM</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Stark Industries - HUD Tactical System</title>
     <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
-    
-    <!-- TensorFlow.js and COCO-SSD Model for Real-Time AI Object & Face Detection -->
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.21.0/dist/tf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"></script>
-
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: {
-                        orbitron: ['Orbitron', 'sans-serif'],
-                        mono: ['Share Tech Mono', 'monospace']
-                    },
-                    colors: {
-                        hudCyan: '#00f0ff',
-                        hudAlert: '#ff2a2a',
-                        hudGold: '#ffb700',
-                        hudGreen: '#00ff66',
-                        hudPurple: '#a855f7'
-                    }
-                }
-            }
-        }
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- TensorFlow.js y COCO-SSD -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
     <style>
-        .hud-glass {
-            border: 1px solid rgba(0, 240, 255, 0.35);
-            box-shadow: 0 0 15px rgba(0, 240, 255, 0.15), inset 0 0 15px rgba(0, 240, 255, 0.08);
-            background: rgba(2, 12, 27, 0.75);
-            backdrop-filter: blur(5px);
-        }
-        .hud-glass-alert {
-            border: 1px solid rgba(255, 42, 42, 0.6);
-            box-shadow: 0 0 20px rgba(255, 42, 42, 0.3), inset 0 0 15px rgba(255, 42, 42, 0.15);
-            background: rgba(30, 4, 4, 0.8);
-            backdrop-filter: blur(5px);
-        }
-        .hud-glass-thermal {
-            border: 1px solid rgba(0, 255, 102, 0.5);
-            box-shadow: 0 0 15px rgba(0, 255, 102, 0.2), inset 0 0 10px rgba(0, 255, 102, 0.1);
-            background: rgba(2, 25, 10, 0.8);
-            backdrop-filter: blur(5px);
-        }
-        .glow-cyan { text-shadow: 0 0 8px rgba(0, 240, 255, 0.8), 0 0 18px rgba(0, 240, 255, 0.4); }
-        .glow-red { text-shadow: 0 0 8px rgba(255, 42, 42, 0.8), 0 0 20px rgba(255, 42, 42, 0.5); }
-        .glow-green { text-shadow: 0 0 8px rgba(0, 255, 102, 0.8); }
-
-        /* VR Stereoscopic Dual View Split */
-        .sbs-mode .hud-viewport-container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            width: 100vw;
-            height: 100vh;
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+        
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            background-color: #020617;
+            color: #38bdf8;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
         }
 
-        /* Thermal Vision Simulation Filter */
-        .thermal-vision {
-            filter: contrast(180%) hue-rotate(90deg) invert(100%) saturate(300%) !important;
-        }
-
-        /* Grid overlay */
-        .grid-bg {
+        .hud-grid {
             background-image: 
-                linear-gradient(to right, rgba(0, 240, 255, 0.04) 1px, transparent 1px),
-                linear-gradient(to bottom, rgba(0, 240, 255, 0.04) 1px, transparent 1px);
+                linear-gradient(to right, rgba(56, 189, 248, 0.05) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(56, 189, 248, 0.05) 1px, transparent 1px);
             background-size: 30px 30px;
         }
 
-        /* Scanline CRT FX */
-        .scanlines::after {
-            content: " ";
-            position: absolute;
-            top: 0; left: 0; bottom: 0; right: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.3) 50%);
-            z-index: 50;
-            background-size: 100% 4px;
-            pointer-events: none;
+        /* Filtros Ópticos */
+        .filter-thermal {
+            filter: hue-rotate(140deg) contrast(180%) saturate(200%);
         }
+        .filter-night {
+            filter: sepia(100%) hue-rotate(60deg) saturate(500%) brightness(90%) contrast(150%);
+        }
+        .filter-holo {
+            filter: hue-rotate(180deg) brightness(120%) contrast(140%);
+        }
+
+        /* Animaciones HUD */
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(1000%); }
+        }
+        .scanline {
+            animation: scanline 4s linear infinite;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 0.3; }
+        }
+        .glow-pulse {
+            animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        /* Ocultar scrollbars */
+        ::-webkit-scrollbar { display: none; }
     </style>
 </head>
-<body class="h-full w-full bg-slate-950 grid-bg scanlines relative overflow-hidden select-none" id="appBody">
+<body class="relative w-screen h-screen m-0 p-0 overflow-hidden bg-black">
 
-    <!-- CAMARA PASSTHROUGH / AR REALITY FEED -->
-    <video id="webcamFeed" class="absolute inset-0 w-full h-full object-cover hidden z-0 scale-x-[-1] transition-all duration-300" autoplay playsinline muted></video>
+    <!-- 1. FEED DE CÁMARA A PANTALLA COMPLETA -->
+    <div id="camera-container" class="absolute inset-0 w-full h-full overflow-hidden z-0">
+        <video id="webcam" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
+        <canvas id="vision-canvas" class="absolute inset-0 w-full h-full pointer-events-none z-10"></canvas>
+        <!-- Escaneo visual -->
+        <div class="absolute inset-0 w-full h-1 bg-cyan-400/30 scanline pointer-events-none z-10"></div>
+    </div>
 
-    <!-- CANVAS PARA COMPUTER VISION Y RENDER VR 3D -->
-    <canvas id="visionCanvas" class="absolute inset-0 w-full h-full z-10 pointer-events-none"></canvas>
+    <!-- 2. CAPA DE FILTROS ÓPTICOS -->
+    <div id="optical-filter" class="absolute inset-0 pointer-events-none z-20 transition-all duration-300"></div>
 
-    <!-- VIEWPORT HUD CONTAINER (Soporta Mono y SBS Estereoscópico VR) -->
-    <div id="hudViewportContainer" class="hud-viewport-container relative z-20 w-full h-full flex transition-all duration-300">
-        
-        <!-- OJO IZQUIERDO / VISTA PRINCIPAL MONO -->
-        <div id="eyeLeft" class="hud-eye relative w-full h-full flex flex-col justify-between p-3 md:p-5 transition-transform duration-75">
-            <!-- HUD CONTENT GENERATED DYNAMICALLY OR DUPLICATED FOR SBS -->
+    <!-- 3. INTERFAZ MINIMALISTA TIPO STARK (HUD CLEAN) -->
+    <div class="absolute inset-0 z-30 pointer-events-none flex flex-col justify-between p-4 hud-grid">
+
+        <!-- Header: Estado del Sistema & Telemetría Mínima -->
+        <div class="flex justify-between items-start text-xs text-cyan-400 font-bold tracking-widest drop-shadow-[0_0_8px_rgba(56,189,248,0.8)]">
+            <div class="bg-black/40 px-3 py-1.5 rounded border border-cyan-500/30 backdrop-blur-md">
+                <span class="inline-block w-2 h-2 rounded-full bg-cyan-400 animate-ping mr-1"></span>
+                MARK L // OS: JARVIS v9.4
+                <div class="text-[10px] text-cyan-300/70 font-normal">AI MODEL: <span id="ai-status">INITIALIZING...</span></div>
+            </div>
+            
+            <!-- Brújula & Coordenadas Centrales -->
+            <div class="hidden sm:flex flex-col items-center bg-black/40 px-4 py-1 rounded border border-cyan-500/30 backdrop-blur-md">
+                <div class="text-cyan-300" id="compass-heading">HDG: 284° NW</div>
+                <div class="text-[9px] text-cyan-500">LAT: 16.4090° S // LON: 71.5375° W</div>
+            </div>
+
+            <div class="bg-black/40 px-3 py-1.5 rounded border border-cyan-500/30 backdrop-blur-md text-right">
+                <div>PWR: <span class="text-emerald-400">98.4%</span> (ARC REACTOR)</div>
+                <div class="text-[10px] text-cyan-300/70">TARGETS: <span id="target-count">0</span> DETECTED</div>
+            </div>
         </div>
 
-        <!-- OJO DERECHO (Solo activo en MODO VR SBS) -->
-        <div id="eyeRight" class="hud-eye relative w-full h-full hidden flex-col justify-between p-3 md:p-5 transition-transform duration-75 border-l border-cyan-500/30">
-            <!-- REPLICATED HUD CONTENT FOR STEREO VR -->
+        <!-- Centro: Retícula de Mira y Lock-on Automático -->
+        <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div class="relative w-48 h-48 border border-cyan-500/20 rounded-full flex items-center justify-center glow-pulse">
+                <div class="absolute w-full h-[1px] bg-cyan-500/40"></div>
+                <div class="absolute h-full w-[1px] bg-cyan-500/40"></div>
+                <div class="w-12 h-12 border-2 border-cyan-400 rounded-full flex items-center justify-center">
+                    <div class="w-1.5 h-1.5 bg-cyan-400 rounded-full animate-ping"></div>
+                </div>
+                <!-- Esquinas de retícula -->
+                <div class="absolute top-2 left-2 w-3 h-3 border-t-2 border-l-2 border-cyan-400"></div>
+                <div class="absolute top-2 right-2 w-3 h-3 border-t-2 border-r-2 border-cyan-400"></div>
+                <div class="absolute bottom-2 left-2 w-3 h-3 border-b-2 border-l-2 border-cyan-400"></div>
+                <div class="absolute bottom-2 right-2 w-3 h-3 border-b-2 border-r-2 border-cyan-400"></div>
+            </div>
+        </div>
+
+        <!-- Footer: Controles Tácticos Interactivos (Clickables pointer-auto) -->
+        <div class="flex flex-col sm:flex-row justify-between items-center gap-3 pointer-events-auto">
+            
+            <!-- Grupo de Ópticas y Filtros -->
+            <div class="flex gap-2 bg-black/60 p-2 rounded-lg border border-cyan-500/30 backdrop-blur-md">
+                <button onclick="setFilter('')" class="px-3 py-1.5 text-xs bg-cyan-950/60 hover:bg-cyan-600/40 border border-cyan-500/40 rounded text-cyan-300 transition">NORMAL</button>
+                <button onclick="setFilter('filter-thermal')" class="px-3 py-1.5 text-xs bg-amber-950/60 hover:bg-amber-600/40 border border-amber-500/40 rounded text-amber-300 transition">TÉRMICO</button>
+                <button onclick="setFilter('filter-night')" class="px-3 py-1.5 text-xs bg-emerald-950/60 hover:bg-emerald-600/40 border border-emerald-500/40 rounded text-emerald-300 transition">NIGHT</button>
+                <button onclick="setFilter('filter-holo')" class="px-3 py-1.5 text-xs bg-blue-950/60 hover:bg-blue-600/40 border border-blue-500/40 rounded text-blue-300 transition">HOLO</button>
+            </div>
+
+            <!-- Controles Centrales de Acción -->
+            <div class="flex gap-2 bg-black/60 p-2 rounded-lg border border-cyan-500/30 backdrop-blur-md items-center">
+                <button onclick="toggleCamera()" id="btn-cam" class="px-4 py-2 text-xs bg-cyan-600 hover:bg-cyan-500 text-black font-bold rounded shadow-[0_0_10px_rgba(56,189,248,0.5)] transition">
+                    CÁMARA ON
+                </button>
+                <button onclick="triggerRepulsor()" class="px-4 py-2 text-xs bg-red-600 hover:bg-red-500 text-white font-bold rounded shadow-[0_0_10px_rgba(239,68,68,0.5)] transition">
+                    REPULSOR ⚡
+                </button>
+                <button onclick="toggleVR()" class="px-4 py-2 text-xs bg-purple-600 hover:bg-purple-500 text-white font-bold rounded shadow-[0_0_10px_rgba(168,85,247,0.5)] transition">
+                    VR SBS
+                </button>
+            </div>
+
+            <!-- Controles de Zoom y Audio JARVIS -->
+            <div class="flex gap-2 bg-black/60 p-2 rounded-lg border border-cyan-500/30 backdrop-blur-md">
+                <button onclick="setZoom(1)" class="px-3 py-1.5 text-xs bg-cyan-950/60 hover:bg-cyan-600/40 border border-cyan-500/40 rounded text-cyan-300">1X</button>
+                <button onclick="setZoom(2)" class="px-3 py-1.5 text-xs bg-cyan-950/60 hover:bg-cyan-600/40 border border-cyan-500/40 rounded text-cyan-300">2X</button>
+                <button onclick="toggleJarvisVoice()" id="btn-jarvis" class="px-3 py-1.5 text-xs bg-cyan-950/60 hover:bg-cyan-600/40 border border-cyan-500/40 rounded text-cyan-300">JARVIS: 🔊</button>
+            </div>
         </div>
 
     </div>
 
-    <!-- TEMPLATE DEL HUD (Módulo reutilizable para renderizado estéreo) -->
-    <template id="hudTemplate">
-        <div class="hud-root flex flex-col justify-between w-full h-full relative">
-            
-            <!-- HEADER: STATUS, COMPASS, ARC REACTOR -->
-            <header class="flex justify-between items-start w-full">
-                <!-- Status Left -->
-                <div class="hud-glass hud-card-status p-2.5 rounded-lg max-w-[220px] w-full">
-                    <div class="flex justify-between items-center border-b border-cyan-500/30 pb-1 mb-1">
-                        <span class="font-orbitron font-bold text-[11px] text-cyan-300"><i class="fa-solid fa-brain text-cyan-400 mr-1"></i> MARK L - OS</span>
-                        <span class="hud-status-badge text-[9px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/40">ONLINE</span>
-                    </div>
-                    <div class="flex justify-between items-center text-[11px]">
-                        <span class="text-slate-400"><i class="fa-solid fa-heart-pulse text-red-500 animate-pulse"></i> BPM</span>
-                        <span class="hud-bpm font-orbitron font-bold text-cyan-300">74</span>
-                    </div>
-                    <!-- Horiz ECG -->
-                    <div class="w-full h-4 bg-slate-900/50 rounded mt-1 overflow-hidden relative border border-cyan-500/20">
-                        <div class="hud-ecg-line absolute inset-0 bg-gradient-to-r from-transparent via-cyan-400 to-transparent w-8 animate-pulse"></div>
-                    </div>
-                </div>
-
-                <!-- Center 3D Compass & Gyro Horizon -->
-                <div class="flex flex-col items-center max-w-sm w-full">
-                    <div class="hud-glass px-4 py-1.5 rounded-full flex items-center gap-3 text-xs font-orbitron text-cyan-300 w-full justify-center">
-                        <span class="hud-compass-text font-bold glow-cyan">N 354°</span>
-                        <div class="flex-1 overflow-hidden h-4 relative border-x border-cyan-500/40 text-[9px]">
-                            <div class="hud-compass-tape absolute whitespace-nowrap flex gap-3 items-center h-full transition-all">
-                                <span>NW</span> <span>|</span> <span>330</span> <span>|</span> <span class="text-cyan-200 font-bold">354</span> <span>|</span> <span class="text-red-400">N</span> <span>|</span> <span>015</span> <span>|</span> <span>NE</span>
-                            </div>
-                        </div>
-                        <span class="hud-mode-badge text-[9px] bg-cyan-900/60 px-1.5 py-0.5 rounded border border-cyan-400/40">FLIGHT</span>
-                    </div>
-                    <div class="text-[8px] text-cyan-400/60 mt-1 uppercase tracking-widest">GYRO: <span class="hud-gyro-val">X:0.0 Y:0.0 Z:0.0</span></div>
-                </div>
-
-                <!-- Arc Reactor Power Output -->
-                <div class="hud-glass hud-card-power p-2.5 rounded-lg max-w-[220px] w-full">
-                    <div class="flex justify-between items-center border-b border-cyan-500/30 pb-1 mb-1 text-[11px]">
-                        <span class="font-orbitron font-bold text-cyan-300"><i class="fa-solid fa-bolt text-yellow-400"></i> ARC CORE</span>
-                        <span class="hud-power-pct font-orbitron font-bold text-cyan-300">99.1%</span>
-                    </div>
-                    <div class="w-full bg-slate-900 rounded-full h-2 border border-cyan-500/30 overflow-hidden">
-                        <div class="hud-power-bar bg-gradient-to-r from-cyan-400 to-blue-500 h-full w-[99%] transition-all duration-300"></div>
-                    </div>
-                    <div class="flex justify-between text-[9px] text-slate-400 mt-1">
-                        <span>OUT: <b class="hud-power-kw text-cyan-300">14.8 GW</b></span>
-                        <span>TEMP: <b class="hud-core-temp text-cyan-300">36°C</b></span>
-                    </div>
-                </div>
-            </header>
-
-            <!-- CENTER RETICLE & LOCK-ON DISPLAY -->
-            <main class="relative flex-1 flex items-center justify-center my-1 pointer-events-none">
-                
-                <!-- Rotating Ring Outer -->
-                <div class="absolute w-64 h-64 md:w-80 md:h-80 rounded-full border border-cyan-500/30 border-dashed animate-[spin_16s_linear_infinite]"></div>
-                <!-- Rotating Ring Inner -->
-                <div class="absolute w-48 h-48 md:w-60 md:h-60 rounded-full border-2 border-cyan-400/40 border-t-transparent border-b-transparent animate-[spin_10s_linear_infinite_reverse]"></div>
-
-                <!-- Target Lock Crosshair -->
-                <div class="hud-reticle relative w-32 h-32 md:w-40 md:h-40 flex items-center justify-center transition-all duration-200">
-                    <svg class="w-full h-full absolute inset-0" viewBox="0 0 200 200">
-                        <path d="M 40,70 L 40,40 L 70,40" stroke="currentColor" stroke-width="2" fill="none" class="hud-stroke"/>
-                        <path d="M 160,70 L 160,40 L 130,40" stroke="currentColor" stroke-width="2" fill="none" class="hud-stroke"/>
-                        <path d="M 40,130 L 40,160 L 70,160" stroke="currentColor" stroke-width="2" fill="none" class="hud-stroke"/>
-                        <path d="M 160,130 L 160,160 L 130,160" stroke="currentColor" stroke-width="2" fill="none" class="hud-stroke"/>
-                        <circle cx="100" cy="100" r="6" fill="rgba(0,240,255,0.2)" stroke="currentColor" stroke-width="1.5" class="hud-stroke"/>
-                    </svg>
-                    <!-- Threat / Lock Alert Box -->
-                    <div class="hud-lock-box absolute -bottom-8 bg-slate-950/90 border border-cyan-400 px-2 py-0.5 rounded text-[9px] font-mono text-center hidden">
-                        <span class="hud-lock-status font-bold text-red-400">TARGET LOCKED</span>
-                        <div class="text-[8px] text-slate-400">DIST: <span class="hud-lock-dist">12.4m</span> | THREAT: <span class="hud-lock-threat text-yellow-400">HIGH</span></div>
-                    </div>
-                </div>
-
-                <!-- Altimeter Left Flank -->
-                <div class="absolute left-2 flex flex-col items-center text-[9px] text-cyan-300">
-                    <span class="font-orbitron text-slate-400">ALT (M)</span>
-                    <div class="h-32 w-6 border-y border-r border-cyan-500/40 relative flex flex-col justify-between py-1 px-0.5 bg-slate-950/40">
-                        <div class="w-full h-0.5 bg-cyan-400"></div>
-                        <div class="w-full h-0.5 bg-cyan-400"></div>
-                        <div class="w-full h-0.5 bg-cyan-400"></div>
-                        <div class="hud-alt-pointer absolute -right-1.5 top-10 text-red-400 text-xs"><i class="fa-solid fa-caret-left"></i></div>
-                    </div>
-                    <span class="hud-alt-val font-bold font-orbitron text-cyan-200">1,240</span>
-                </div>
-
-                <!-- Velocity Right Flank -->
-                <div class="absolute right-2 flex flex-col items-center text-[9px] text-cyan-300">
-                    <span class="font-orbitron text-slate-400">MACH</span>
-                    <div class="h-32 w-6 border-y border-l border-cyan-500/40 relative flex flex-col justify-between py-1 px-0.5 bg-slate-950/40 items-end">
-                        <div class="w-full h-0.5 bg-cyan-400"></div>
-                        <div class="w-full h-0.5 bg-cyan-400"></div>
-                        <div class="w-full h-0.5 bg-cyan-400"></div>
-                        <div class="hud-speed-pointer absolute -left-1.5 top-14 text-cyan-400 text-xs"><i class="fa-solid fa-caret-right"></i></div>
-                    </div>
-                    <span class="hud-speed-val font-bold font-orbitron text-cyan-200">2.4</span>
-                </div>
-            </main>
-
-            <!-- FOOTER: ARMOR STATUS, JARVIS VOICE CHAT, TACTICAL CONTROLS -->
-            <footer class="flex flex-wrap justify-between items-end gap-2 w-full">
-                
-                <!-- Armor Nanotech Diagram -->
-                <div class="hud-glass p-2 rounded-lg max-w-[200px] w-full">
-                    <div class="flex justify-between items-center text-[10px] border-b border-cyan-500/30 pb-0.5 mb-1">
-                        <span class="font-orbitron font-bold text-cyan-300">AI DETECTOR</span>
-                        <span class="hud-ai-status font-bold text-yellow-400">STANDBY</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <svg class="w-12 h-14 text-cyan-400" viewBox="0 0 100 120">
-                            <path d="M40 10 L60 10 L65 25 L50 32 L35 25 Z" fill="rgba(0,240,255,0.2)" stroke="currentColor" stroke-width="1.5"/>
-                            <path d="M30 35 L70 35 L78 65 L60 90 L40 90 L22 65 Z" fill="rgba(0,240,255,0.15)" stroke="currentColor" stroke-width="1.5"/>
-                            <circle cx="50" cy="55" r="6" fill="#00f0ff" class="animate-pulse"/>
-                        </svg>
-                        <div class="flex flex-col gap-0.5 text-[8px] text-slate-300 flex-1">
-                            <div class="flex justify-between"><span>MODEL:</span><b class="text-cyan-300">COCO-SSD</b></div>
-                            <div class="flex justify-between"><span>TARGETS:</span><b class="hud-target-count text-cyan-300">0</b></div>
-                            <div class="flex justify-between"><span>FPS AI:</span><b class="hud-ai-fps text-cyan-300">--</b></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- JARVIS Interactive Assistant & Voice Visualizer -->
-                <div class="hud-glass p-2.5 rounded-xl max-w-sm w-full flex flex-col items-center gap-1.5 text-center pointer-events-auto">
-                    <div class="flex items-center justify-between w-full text-[10px] font-orbitron text-cyan-300 border-b border-cyan-500/20 pb-1">
-                        <span class="flex items-center gap-1"><i class="fa-solid fa-microphone hud-mic-icon text-cyan-400"></i> JARVIS AI</span>
-                        <span class="text-[8px] text-slate-400">WEB-SPEECH NLP</span>
-                    </div>
-
-                    <!-- Voice Waveform Canvas -->
-                    <canvas class="hud-audio-wave w-full h-5 rounded bg-slate-950/60 border border-cyan-500/20"></canvas>
-
-                    <!-- Dynamic Chat / Assistant Transcript -->
-                    <p class="hud-chat-text text-[10px] text-slate-200 italic min-h-[22px] max-w-xs truncate">
-                        "Sistemas Mark L listos. ¿En qué puedo ayudarle, Señor?"
-                    </p>
-
-                    <!-- Quick Voice / Action Buttons -->
-                    <div class="flex flex-wrap gap-1.5 justify-center w-full text-[9px]">
-                        <button onclick="triggerAction('escaneo')" class="hud-glass px-2 py-0.5 rounded text-cyan-300 hover:bg-cyan-500/20 active:scale-95 transition-all">
-                            <i class="fa-solid fa-radar mr-1"></i> Scan
-                        </button>
-                        <button onclick="triggerAction('fireRepulsor')" class="hud-glass px-2 py-0.5 rounded text-yellow-300 hover:bg-yellow-500/20 active:scale-95 transition-all">
-                            <i class="fa-solid fa-gun mr-1"></i> Repulsor
-                        </button>
-                        <button onclick="triggerAction('combate')" class="hud-glass px-2 py-0.5 rounded text-red-400 hover:bg-red-500/20 active:scale-95 transition-all">
-                            <i class="fa-solid fa-triangle-exclamation mr-1"></i> Alerta
-                        </button>
-                        <button onclick="toggleVoiceListen()" class="hud-mic-btn hud-glass px-2 py-0.5 rounded text-yellow-300 bg-yellow-500/10 hover:bg-yellow-500/30 transition-all">
-                            <i class="fa-solid fa-microphone-slash mr-1"></i> Voz
-                        </button>
-                    </div>
-                </div>
-
-                <!-- VR / Modes / Passthrough Panel -->
-                <div class="hud-glass p-2 rounded-lg max-w-[200px] w-full flex flex-col gap-1.5 pointer-events-auto">
-                    <span class="font-orbitron font-bold text-[10px] text-cyan-300 border-b border-cyan-500/30 pb-0.5">CONFIG VR / VISIÓN</span>
-                    <div class="grid grid-cols-2 gap-1 text-[9px]">
-                        <button onclick="toggleVR_SBS()" id="sbsBtn" class="hud-glass p-1.5 rounded flex flex-col items-center justify-center hover:bg-cyan-500/20 transition-all">
-                            <i class="fa-solid fa-vr-cardboard text-cyan-400 text-xs"></i>
-                            <span>VR SBS</span>
-                        </button>
-                        <button onclick="toggleThermalVision()" id="thermalBtn" class="hud-glass p-1.5 rounded flex flex-col items-center justify-center hover:bg-cyan-500/20 transition-all">
-                            <i class="fa-solid fa-eye text-cyan-400 text-xs"></i>
-                            <span>Térmico</span>
-                        </button>
-                        <button onclick="toggleCamPassthrough()" id="camBtn" class="hud-glass p-1.5 rounded flex flex-col items-center justify-center hover:bg-cyan-500/20 transition-all">
-                            <i class="fa-solid fa-camera text-cyan-400 text-xs"></i>
-                            <span>Cámara</span>
-                        </button>
-                        <button onclick="toggleFullscreen()" class="hud-glass p-1.5 rounded flex flex-col items-center justify-center hover:bg-cyan-500/20 transition-all">
-                            <i class="fa-solid fa-expand text-cyan-400 text-xs"></i>
-                            <span>Full VR</span>
-                        </button>
-                    </div>
-                    <!-- IPD Slider (Visible in SBS Mode) -->
-                    <div id="ipdControl" class="hidden flex-col gap-0.5 text-[8px] text-cyan-300 border-t border-cyan-500/30 pt-1">
-                        <div class="flex justify-between"><span>IPD Ajuste:</span><span id="ipdVal">64mm</span></div>
-                        <input type="range" min="50" max="80" value="64" id="ipdSlider" oninput="adjustIPD(this.value)" class="w-full accent-cyan-400 h-1 bg-slate-800 rounded">
-                    </div>
-                </div>
-
-            </footer>
-        </div>
-    </template>
-
-    <!-- SCRIPT DE SISTEMA JAVASCRIPT AVANZADO -->
+    <!-- SCRIPT DE CONTROL Y VISIÓN ARTIFICIAL -->
     <script>
-        /* ==========================================================================
-           1. ESTADO GLOBAL DE SISTEMAS Y TELEMETRÍA
-           ========================================================================== */
-        const state = {
-            sbsVR: false,
-            thermalVision: false,
-            camActive: false,
-            ipdOffset: 0,
-            mode: 'NOMINAL', // NOMINAL, COMBAT, SCAN, THERMAL
-            targetLocked: false,
-            gyro: { alpha: 0, beta: 0, gamma: 0 },
-            audioMuted: false,
-            speechListening: false,
-            aiModel: null,
-            aiModelLoading: false,
-            detectedObjects: [],
-            lastSpokenTarget: "",
-            lastSpokenTime: 0
-        };
+        const video = document.getElementById('webcam');
+        const canvas = document.getElementById('vision-canvas');
+        const ctx = canvas.getContext('2d');
+        const aiStatus = document.getElementById('ai-status');
+        const targetCountEl = document.getElementById('target-count');
+        
+        let model = null;
+        let isCameraActive = false;
+        let jarvisActive = true;
+        let lastSpokenTarget = "";
 
-        /* ==========================================================================
-           2. INICIALIZACIÓN DE LA INTERFAZ Y RENDERIZADO DUAL SBS VR
-           ========================================================================== */
-        const eyeLeft = document.getElementById('eyeLeft');
-        const eyeRight = document.getElementById('eyeRight');
-        const template = document.getElementById('hudTemplate');
+        // 1. Inicializar Cámara HD trasera/frontal adaptativa para móviles
+        async function toggleCamera() {
+            if (!isCameraActive) {
+                try {
+                    const constraints = {
+                        video: {
+                            facingMode: { ideal: "environment" },
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        },
+                        audio: false
+                    };
+                    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    video.srcObject = stream;
+                    isCameraActive = true;
+                    document.getElementById('btn-cam').innerText = "CÁMARA OFF";
+                    document.getElementById('btn-cam').classList.replace('bg-cyan-600', 'bg-red-600');
+                    
+                    // Ajustar tamaño del canvas al stream
+                    video.onloadedmetadata = () => {
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                    };
 
-        function renderHUD() {
-            eyeLeft.innerHTML = '';
-            eyeRight.innerHTML = '';
-            
-            const contentLeft = template.content.cloneNode(true);
-            eyeLeft.appendChild(contentLeft);
-
-            if (state.sbsVR) {
-                const contentRight = template.content.cloneNode(true);
-                eyeRight.appendChild(contentRight);
-                eyeRight.classList.remove('hidden');
-                eyeRight.classList.add('flex');
+                    speakJarvis("Sistemas ópticos en línea. Iniciando escaneo biométrico.");
+                    initAI();
+                } catch (err) {
+                    alert("Error al acceder a la cámara: " + err.message);
+                }
             } else {
-                eyeRight.classList.add('hidden');
-                eyeRight.classList.remove('flex');
-            }
-        }
-        renderHUD();
-
-        /* Actualizador universal de elementos duplicados (Mono / Stereo SBS) */
-        function updateHUDElements(selector, callback) {
-            document.querySelectorAll(selector).forEach(el => callback(el));
-        }
-
-        /* ==========================================================================
-           3. SINTETIZADOR DE AUDIO Y SONIDOS TÁCTICOS SCI-FI (Web Audio API)
-           ========================================================================== */
-        let audioCtx = null;
-        function initAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const stream = video.srcObject;
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                video.srcObject = null;
+                isCameraActive = false;
+                document.getElementById('btn-cam').innerText = "CÁMARA ON";
+                document.getElementById('btn-cam').classList.replace('bg-red-600', 'bg-cyan-600');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                aiStatus.innerText = "STANDBY";
             }
         }
 
-        function playSound(type) {
-            if (state.audioMuted) return;
+        // 2. Cargar Modelo de Detección COCO-SSD (IA)
+        async function initAI() {
+            aiStatus.innerText = "LOADING AI...";
             try {
-                initAudio();
-                const now = audioCtx.currentTime;
-
-                if (type === 'beep') {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(880, now);
-                    gain.gain.setValueAtTime(0.08, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-                    osc.connect(gain); gain.connect(audioCtx.destination);
-                    osc.start(); osc.stop(now + 0.08);
-                } 
-                else if (type === 'lock') {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(1200, now);
-                    osc.frequency.setValueAtTime(1800, now + 0.05);
-                    gain.gain.setValueAtTime(0.15, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-                    osc.connect(gain); gain.connect(audioCtx.destination);
-                    osc.start(); osc.stop(now + 0.15);
-                } 
-                else if (type === 'repulsor') {
-                    // Repulsor blast charging and fire sound
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(300, now);
-                    osc.frequency.exponentialRampToValueAtTime(1400, now + 0.15);
-                    osc.frequency.exponentialRampToValueAtTime(100, now + 0.4);
-                    gain.gain.setValueAtTime(0.3, now);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-                    osc.connect(gain); gain.connect(audioCtx.destination);
-                    osc.start(); osc.stop(now + 0.4);
-                }
-                else if (type === 'alert') {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.type = 'square';
-                    osc.frequency.setValueAtTime(440, now);
-                    osc.frequency.setValueAtTime(880, now + 0.1);
-                    gain.gain.setValueAtTime(0.2, now);
-                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
-                    osc.connect(gain); gain.connect(audioCtx.destination);
-                    osc.start(); osc.stop(now + 0.25);
-                }
-            } catch(e) {}
+                model = await cocoSsd.load();
+                aiStatus.innerText = "ONLINE (COCO-SSD)";
+                detectObjects();
+            } catch (e) {
+                aiStatus.innerText = "ERROR AI";
+            }
         }
 
-        /* ==========================================================================
-           4. ASISTENTE JARVIS SPEECH SYNTHESIS & SPEECH RECOGNITION (IA & VOZ)
-           ========================================================================== */
-        function speakJarvis(text) {
-            updateHUDElements('.hud-chat-text', el => el.innerText = `"${text}"`);
+        // 3. Bucle de Visión Artificial en Tiempo Real
+        async function detectObjects() {
+            if (!isCameraActive || !model) return;
             
+            try {
+                const predictions = await model.detect(video);
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                targetCountEl.innerText = predictions.length;
+
+                predictions.forEach(prediction => {
+                    const [x, y, width, height] = prediction.bbox;
+                    
+                    // Dibujar retícula táctil tipo Stark alrededor del objeto
+                    ctx.strokeStyle = '#38bdf8';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(x, y, width, height);
+
+                    // Esquinas decorativas de la caja
+                    const cornerLen = 10;
+                    ctx.fillStyle = '#38bdf8';
+                    // Top-Left
+                    ctx.fillRect(x, y, cornerLen, 3);
+                    ctx.fillRect(x, y, 3, cornerLen);
+                    // Top-Right
+                    ctx.fillRect(x + width - cornerLen, y, cornerLen, 3);
+                    ctx.fillRect(x + width - 3, y, 3, cornerLen);
+                    // Bottom-Left
+                    ctx.fillRect(x, y + height - 3, cornerLen, 3);
+                    ctx.fillRect(x, y + height - cornerLen, 3, cornerLen);
+                    // Bottom-Right
+                    ctx.fillRect(x + width - cornerLen, y + height - 3, cornerLen, 3);
+                    ctx.fillRect(x + width - 3, y + height - cornerLen, 3, cornerLen);
+
+                    // Texto de identificación
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.font = '14px "Share Tech Mono", monospace';
+                    ctx.fillText(`${prediction.class.toUpperCase()} [${Math.round(prediction.score * 100)}%]`, x, y > 20 ? y - 8 : y + 15);
+
+                    // Alerta de voz JARVIS si detecta persona (human)
+                    if (prediction.class === 'person' && jarvisActive && lastSpokenTarget !== 'person') {
+                        speakJarvis("Objetivo humano identificado en el campo visual.");
+                        lastSpokenTarget = 'person';
+                        setTimeout(() => { lastSpokenTarget = ""; }, 8000);
+                    }
+                });
+            } catch (err) {
+                console.error(err);
+            }
+
+            if (isCameraActive) {
+                requestAnimationFrame(detectObjects);
+            }
+        }
+
+        // 4. Cambiar Filtros Ópticos
+        function setFilter(filterClass) {
+            const filterLayer = document.getElementById('optical-filter');
+            filterLayer.className = `absolute inset-0 pointer-events-none z-20 transition-all duration-300 ${filterClass}`;
+        }
+
+        // 5. Zoom Táctico
+        function setZoom(scale) {
+            video.style.transform = `scale(${scale})`;
+            canvas.style.transform = `scale(${scale})`;
+        }
+
+        // 6. Efecto de Sonido y Disparo de Repulsor (Web Audio API)
+        function triggerRepulsor() {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.5);
+
+            gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+            
+            speakJarvis("Sistemas repulsores armados.");
+        }
+
+        // 7. Síntesis de Voz JARVIS
+        function speakJarvis(text) {
+            if (!jarvisActive) return;
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
-                const synth = new SpeechSynthesisUtterance(text);
-                synth.lang = 'es-ES';
-                synth.pitch = 0.95;
-                synth.rate = 1.05;
-
-                const voices = window.speechSynthesis.getVoices();
-                const esVoice = voices.find(v => v.lang.includes('es'));
-                if (esVoice) synth.voice = esVoice;
-
-                playSound('beep');
-                window.speechSynthesis.speak(synth);
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'es-ES';
+                utterance.pitch = 0.8;
+                utterance.rate = 1.1;
+                window.speechSynthesis.speak(utterance);
             }
         }
 
-        let recognition = null;
-        function initRecognition() {
-            const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-            if (!SpeechRec) return;
-
-            recognition = new SpeechRec();
-            recognition.continuous = true;
-            recognition.lang = 'es-ES';
-            recognition.interimResults = false;
-
-            recognition.onstart = () => {
-                state.speechListening = true;
-                updateHUDElements('.hud-mic-icon', el => el.className = 'fa-solid fa-microphone text-red-500 animate-pulse');
-                updateHUDElements('.hud-chat-text', el => el.innerText = "Escuchando órdenes, Señor...");
-            };
-
-            recognition.onresult = (e) => {
-                const text = e.results[e.results.length - 1][0].transcript.trim().toLowerCase();
-                updateHUDElements('.hud-chat-text', el => el.innerText = `"${text}"`);
-                processCommand(text);
-            };
-
-            recognition.onend = () => {
-                if (state.speechListening) recognition.start();
-            };
+        function toggleJarvisVoice() {
+            jarvisActive = !jarvisActive;
+            const btn = document.getElementById('btn-jarvis');
+            btn.innerText = jarvisActive ? "JARVIS: 🔊" : "JARVIS: 🔇";
         }
 
-        function toggleVoiceListen() {
-            if (!recognition) initRecognition();
-            if (!recognition) return;
-
-            if (state.speechListening) {
-                state.speechListening = false;
-                recognition.stop();
-                updateHUDElements('.hud-mic-icon', el => el.className = 'fa-solid fa-microphone text-cyan-400');
-            } else {
-                try { recognition.start(); } catch(e){}
-            }
+        // 8. Modo VR SBS (Side-by-Side Split)
+        function toggleVR() {
+            alert("Modo VR activado. Coloque el teléfono en su visor Cardboard o Gafas VR.");
+            // Duplica el contenedor visual si se desea simular doble lente
         }
 
-        function processCommand(cmd) {
-            playSound('beep');
-            if (cmd.includes('escaneo') || cmd.includes('scan') || cmd.includes('analizar')) {
-                triggerAction('escaneo');
-            } else if (cmd.includes('fuego') || cmd.includes('disparar') || cmd.includes('repulsor')) {
-                triggerAction('fireRepulsor');
-            } else if (cmd.includes('combate') || cmd.includes('alerta') || cmd.includes('peligro')) {
-                triggerAction('combate');
-            } else if (cmd.includes('normal') || cmd.includes('vuelo') || cmd.includes('cancelar')) {
-                triggerAction('normal');
-            } else if (cmd.includes('quién eres') || cmd.includes('identificación')) {
-                speakJarvis("Soy JARVIS, su inteligencia artificial de soporte táctico Mark L.");
-            } else {
-                speakJarvis("Comando procesado, Señor.");
-            }
-        }
-
-        function triggerAction(action) {
-            if (action === 'escaneo') {
-                speakJarvis("Iniciando escaneo biométrico y de ambiente.");
-                state.targetLocked = true;
-                playSound('lock');
-                updateHUDElements('.hud-lock-box', el => el.classList.remove('hidden'));
-            } else if (action === 'fireRepulsor') {
-                speakJarvis("Repulsor descargado.");
-                playSound('repulsor');
-                updateHUDElements('.hud-reticle', el => {
-                    el.classList.add('scale-150', 'text-yellow-400');
-                    setTimeout(() => el.classList.remove('scale-150', 'text-yellow-400'), 300);
-                });
-            } else if (action === 'combate') {
-                state.mode = 'COMBAT';
-                speakJarvis("Alerta de combate. Escudos nanotécnicos cargados.");
-                playSound('alert');
-                updateHUDElements('.hud-root', el => el.classList.add('glow-red'));
-                updateHUDElements('.hud-card-status', el => el.className = 'hud-glass-alert p-2.5 rounded-lg max-w-[220px] w-full');
-                updateHUDElements('.hud-card-power', el => el.className = 'hud-glass-alert p-2.5 rounded-lg max-w-[220px] w-full');
-                updateHUDElements('.hud-status-badge', el => { el.innerText = "COMBAT"; el.className = "text-[9px] px-1.5 py-0.5 rounded bg-red-950 text-red-300 border border-red-500/50 animate-pulse"; });
-            } else if (action === 'normal') {
-                state.mode = 'NOMINAL';
-                speakJarvis("Sistemas restablecidos a modo de vuelo nominal.");
-                updateHUDElements('.hud-root', el => el.classList.remove('glow-red'));
-                updateHUDElements('.hud-card-status', el => el.className = 'hud-glass p-2.5 rounded-lg max-w-[220px] w-full');
-                updateHUDElements('.hud-card-power', el => el.className = 'hud-glass p-2.5 rounded-lg max-w-[220px] w-full');
-                updateHUDElements('.hud-status-badge', el => { el.innerText = "ONLINE"; el.className = "text-[9px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-500/40"; });
-                updateHUDElements('.hud-lock-box', el => el.classList.add('hidden'));
-            }
-        }
-
-        /* ==========================================================================
-           5. MODO VR ESTEREOSCÓPICO SBS & AJUSTE IPD
-           ========================================================================== */
-        function toggleVR_SBS() {
-            state.sbsVR = !state.sbsVR;
-            const appBody = document.getElementById('appBody');
-            const ipdCtrl = document.getElementById('ipdControl');
-
-            if (state.sbsVR) {
-                appBody.classList.add('sbs-mode');
-                if (ipdCtrl) ipdCtrl.classList.remove('hidden');
-                speakJarvis("Modo de Realidad Virtual Estereoscópico activado.");
-            } else {
-                appBody.classList.remove('sbs-mode');
-                if (ipdCtrl) ipdCtrl.classList.add('hidden');
-                speakJarvis("Modo mono desactivado.");
-            }
-            renderHUD();
-            playSound('beep');
-        }
-
-        function adjustIPD(val) {
-            document.getElementById('ipdVal').innerText = `${val}mm`;
-            const offset = (val - 64) * 0.5;
-            eyeLeft.style.transform = `translateX(${-offset}px)`;
-            eyeRight.style.transform = `translateX(${offset}px)`;
-        }
-
-        function toggleThermalVision() {
-            state.thermalVision = !state.thermalVision;
-            const video = document.getElementById('webcamFeed');
-            if (state.thermalVision) {
-                video.classList.add('thermal-vision');
-                speakJarvis("Filtro de visión térmica e infrarroja cargado.");
-            } else {
-                video.classList.remove('thermal-vision');
-                speakJarvis("Visión térmica desactivada.");
-            }
-            playSound('beep');
-        }
-
-        async function toggleCamPassthrough() {
-            const video = document.getElementById('webcamFeed');
-            if (!state.camActive) {
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ 
-                        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } 
-                    });
-                    video.srcObject = stream;
-                    video.classList.remove('hidden');
-                    state.camActive = true;
-                    speakJarvis("Passthrough de cámara activo. Cargando visión artificial.");
-                    
-                    // Cargar e iniciar modelo AI de visión por computadora
-                    initTensorFlowModel();
-                } catch(e) {
-                    speakJarvis("No se pudo acceder a la cámara.");
-                }
-            } else {
-                if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
-                video.classList.add('hidden');
-                state.camActive = false;
-                state.detectedObjects = [];
-                speakJarvis("Cámara e IA de detección desactivadas.");
-            }
-            playSound('beep');
-        }
-
-        /* ==========================================================================
-           5. TENSORFLOW.JS REAL-TIME OBJECT & FACE DETECTION (COCO-SSD AI)
-           ========================================================================== */
-        async function initTensorFlowModel() {
-            if (state.aiModel) return;
-            if (state.aiModelLoading) return;
-
-            state.aiModelLoading = true;
-            updateHUDElements('.hud-ai-status', el => { el.innerText = "LOADING"; el.className = "font-bold text-yellow-400 animate-pulse"; });
-            
-            try {
-                // Carga del modelo COCO-SSD para detección de múltiples clases
-                state.aiModel = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
-                state.aiModelLoading = false;
-                updateHUDElements('.hud-ai-status', el => { el.innerText = "ONLINE"; el.className = "font-bold text-green-400"; });
-                speakJarvis("Módulo de Visión Artificial COCO-SSD cargado con éxito.");
-                
-                // Iniciar loop continuo de detección por IA
-                detectLoop();
-            } catch (err) {
-                state.aiModelLoading = false;
-                updateHUDElements('.hud-ai-status', el => { el.innerText = "ERROR"; el.className = "font-bold text-red-500"; });
-                speakJarvis("Error al inicializar la red neuronal de visión.");
-            }
-        }
-
-        let lastFrameTime = Date.now();
-        async function detectLoop() {
-            const video = document.getElementById('webcamFeed');
-            if (state.camActive && state.aiModel && video.readyState === 4) {
-                try {
-                    const predictions = await state.aiModel.detect(video);
-                    state.detectedObjects = predictions;
-                    
-                    // Métricas de IA
-                    const now = Date.now();
-                    const fps = Math.round(1000 / (now - lastFrameTime));
-                    lastFrameTime = now;
-
-                    updateHUDElements('.hud-target-count', el => el.innerText = predictions.length);
-                    updateHUDElements('.hud-ai-fps', el => el.innerText = `${fps} FPS`);
-
-                    // Procesar alertas de voz de JARVIS al detectar objetivos relevantes
-                    processAIDetectionAlerts(predictions);
-
-                } catch (e) {}
-            } else if (!state.camActive) {
-                state.detectedObjects = [];
-                updateHUDElements('.hud-target-count', el => el.innerText = "0");
-                return;
-            }
-            
-            // Loop continuo
-            requestAnimationFrame(detectLoop);
-        }
-
-        const spanishTranslations = {
-            "person": "Persona / Humano",
-            "cell phone": "Teléfono Móvil",
-            "laptop": "Computadora",
-            "cup": "Taza",
-            "bottle": "Botella",
-            "chair": "Silla",
-            "cat": "Gato / Felino",
-            "dog": "Perro / Canino",
-            "book": "Libro",
-            "tv": "Pantalla TV",
-            "keyboard": "Teclado",
-            "mouse": "Mouse"
-        };
-
-        function processAIDetectionAlerts(predictions) {
-            if (predictions.length === 0) return;
-
-            const topTarget = predictions[0];
-            const now = Date.now();
-
-            // Solo anunciar cada 4 segundos para evitar spam verbal
-            if (now - state.lastSpokenTime > 4000) {
-                const className = topTarget.class;
-                const translated = spanishTranslations[className] || className;
-
-                if (className === 'person') {
-                    speakJarvis("Sujeto humano identificado en el visor.");
-                    playSound('lock');
-                } else {
-                    speakJarvis(`Objetivo detectado: ${translated}.`);
-                    playSound('beep');
-                }
-
-                state.lastSpokenTarget = className;
-                state.lastSpokenTime = now;
-            }
-        }
-
-        /* ==========================================================================
-           6. DIBUJO DE BOUNDING BOXES TÁCTICAS EN CANVAS
-           ========================================================================== */
-        const canvas = document.getElementById('visionCanvas');
-        const ctx = canvas.getContext('2d');
-
-        function resizeCanvas() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
-
-        function drawVisionOverlay() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            const video = document.getElementById('webcamFeed');
-            const hasVideo = state.camActive && video.readyState === 4;
-
-            if (hasVideo && state.detectedObjects.length > 0) {
-                // Mapear escala de vídeo a pantalla canvas
-                const scaleX = canvas.width / video.videoWidth;
-                const scaleY = canvas.height / video.videoHeight;
-
-                state.detectedObjects.forEach((target, index) => {
-                    let [x, y, width, height] = target.bbox;
-
-                    // Espejo de coordenadas si la cámara está volteada horizontalmente
-                    x = canvas.width - (x * scaleX) - (width * scaleX);
-                    y = y * scaleY;
-                    width = width * scaleX;
-                    height = height * scaleY;
-
-                    const isPerson = target.class === 'person';
-                    const scorePct = Math.round(target.score * 100);
-                    const labelSpan = spanishTranslations[target.class] || target.class.toUpperCase();
-
-                    // Color de la retícula
-                    const isCombat = state.mode === 'COMBAT';
-                    ctx.strokeStyle = isCombat ? '#ff2a2a' : (isPerson ? '#ffb700' : '#00f0ff');
-                    ctx.fillStyle = ctx.strokeStyle;
-                    ctx.lineWidth = 2;
-
-                    // Dibujar esquinas futuristas Stark HUD
-                    const corner = Math.min(20, width * 0.2, height * 0.2);
-                    ctx.beginPath();
-                    // Top-Left
-                    ctx.moveTo(x, y + corner); ctx.lineTo(x, y); ctx.lineTo(x + corner, y);
-                    // Top-Right
-                    ctx.moveTo(x + width - corner, y); ctx.lineTo(x + width, y); ctx.lineTo(x + width, y + corner);
-                    // Bottom-Left
-                    ctx.moveTo(x, y + height - corner); ctx.lineTo(x, y + height); ctx.lineTo(x + corner, y + height);
-                    // Bottom-Right
-                    ctx.moveTo(x + width - corner, y + height); ctx.lineTo(x + width, y + height); ctx.lineTo(x + width, y + height - corner);
-                    ctx.stroke();
-
-                    // Cruz / Retícula central de Target Lock
-                    const cx = x + width / 2;
-                    const cy = y + height / 2;
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, 4, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    // Líneas guía
-                    ctx.beginPath();
-                    ctx.setLineDash([4, 4]);
-                    ctx.moveTo(cx - 12, cy); ctx.lineTo(cx + 12, cy);
-                    ctx.moveTo(cx, cy - 12); ctx.lineTo(cx, cy + 12);
-                    ctx.stroke();
-                    ctx.setLineDash([]);
-
-                    // Etiqueta Holográfica táctica
-                    ctx.font = '11px Orbitron, Share Tech Mono';
-                    const textHeader = `[ ${labelSpan} ] ${scorePct}%`;
-                    const textSub = `THREAT: ${isPerson ? 'HIGH' : 'LOW'} | ID: #${index + 101}`;
-
-                    // Fondo de texto glassmorphism
-                    ctx.fillStyle = 'rgba(2, 12, 27, 0.75)';
-                    ctx.fillRect(x, y - 28, Math.max(160, ctx.measureText(textHeader).width + 10), 24);
-                    ctx.strokeRect(x, y - 28, Math.max(160, ctx.measureText(textHeader).width + 10), 24);
-
-                    ctx.fillStyle = isCombat ? '#ff2a2a' : (isPerson ? '#ffb700' : '#00f0ff');
-                    ctx.fillText(textHeader, x + 5, y - 14);
-                    ctx.font = '8px Share Tech Mono';
-                    ctx.fillText(textSub, x + 5, y - 5);
-                });
-            }
-
-            requestAnimationFrame(drawVisionOverlay);
-        }
-        drawVisionOverlay();
-
-        /* ==========================================================================
-           7. GIROSCOPIO Y ORIENTACIÓN 3D REAL (DeviceOrientation API)
-           ========================================================================== */
-        window.addEventListener('deviceorientation', (e) => {
-            if (e.alpha !== null) {
-                state.gyro.alpha = Math.round(e.alpha);
-                state.gyro.beta = Math.round(e.beta);
-                state.gyro.gamma = Math.round(e.gamma);
-
-                updateHUDElements('.hud-compass-text', el => el.innerText = `N ${state.gyro.alpha}°`);
-                updateHUDElements('.hud-gyro-val', el => el.innerText = `X:${state.gyro.beta} Y:${state.gyro.gamma} Z:${state.gyro.alpha}`);
-                
-                // Gyroscopic 3D Parallax Tilt for HUD
-                const tiltX = (e.gamma / 90) * 15;
-                const tiltY = (e.beta / 180) * 15;
-                eyeLeft.style.transform = `rotateX(${tiltY}deg) rotateY(${tiltX}deg)`;
-                if (state.sbsVR) eyeRight.style.transform = `rotateX(${tiltY}deg) rotateY(${tiltX}deg)`;
-            }
-        });
-
-        /* ==========================================================================
-           8. TELEMETRÍA DINÁMICA DE VUELO Y ONDA AUDIO
-           ========================================================================== */
+        // Actualizar brújula aleatoria para realismo táctico
         setInterval(() => {
-            // Heartbeat
-            const bpm = Math.floor(72 + Math.random() * 6);
-            updateHUDElements('.hud-bpm', el => el.innerText = bpm);
-
-            // Altitude & Speed
-            const alt = Math.floor(1240 + Math.random() * 10);
-            updateHUDElements('.hud-alt-val', el => el.innerText = alt.toLocaleString());
-
-            const speed = (2.4 + (Math.random() * 0.05)).toFixed(2);
-            updateHUDElements('.hud-speed-val', el => el.innerText = speed);
-        }, 500);
-
-        // Audio Waveform Canvas Animation
-        function drawAudioWaveform() {
-            document.querySelectorAll('.hud-audio-wave').forEach(waveCanvas => {
-                const wCtx = waveCanvas.getContext('2d');
-                wCtx.clearRect(0, 0, waveCanvas.width, waveCanvas.height);
-                wCtx.beginPath();
-                wCtx.strokeStyle = state.speechListening ? '#ff2a2a' : '#00f0ff';
-                wCtx.lineWidth = 1.5;
-
-                for (let x = 0; x < waveCanvas.width; x += 4) {
-                    const h = state.speechListening ? Math.random() * waveCanvas.height : (Math.sin(x * 0.1 + Date.now() * 0.005) * 4) + (waveCanvas.height / 2);
-                    if (x === 0) wCtx.moveTo(x, h);
-                    else wCtx.lineTo(x, h);
-                }
-                wCtx.stroke();
-            });
-            requestAnimationFrame(drawAudioWaveform);
-        }
-        drawAudioWaveform();
-
-        // Saludo Inicial de JARVIS
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                speakJarvis("Sistemas Mark L inicializados. Realidad aumentada y soporte VR listos.");
-            }, 600);
-        });
+            const hdg = Math.floor(280 + Math.random() * 10);
+            document.getElementById('compass-heading').innerText = `HDG: ${hdg}° NW`;
+        }, 2000);
     </script>
 </body>
 </html>
